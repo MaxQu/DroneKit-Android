@@ -69,12 +69,15 @@ public class ViewCategoryFragment extends Fragment {
                 case 1:
                 default:
                     return new RecommendedAppsFragment();
+
+                case 2:
+                    return new GCSAttitudeAppsFragment();
             }
         }
 
         @Override
         public int getCount() {
-            return 2;
+            return 3;
         }
 
         @Override
@@ -86,6 +89,9 @@ public class ViewCategoryFragment extends Fragment {
                 case 1:
                 default:
                     return context.getString(R.string.label_view_category_recommended);
+
+                case 2:
+                    return context.getString(R.string.label_view_category_attitude);
             }
         }
     }

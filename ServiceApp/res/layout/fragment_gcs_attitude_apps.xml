@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TableLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/gcs_attitude_apps"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:shrinkColumns="*"
+    android:stretchColumns="*" >
+
+    <TableRow
+        android:id="@+id/tableRow1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal" >
+
+        <TextView
+            android:id="@+id/textView11"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_span="6"
+            android:gravity="center"
+            android:text="Raw Orientation Data"
+            android:textSize="22dp"
+            android:textStyle="bold" >
+        </TextView>
+    </TableRow>
+
+    <TableRow
+        android:id="@+id/tableRow2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" >
+
+        <TextView
+            android:id="@+id/TextView21"
+            android:gravity="center_horizontal"
+            android:textSize="18dp"
+            android:text="Sensor"
+            android:textStyle="bold"
+            android:typeface="serif" >
+        </TextView>
+
+        <TextView
+            android:id="@+id/TextView22"
+            android:gravity="center"
+            android:textSize="18dp"
+            android:text="Data"
+            android:textStyle="bold"
+            android:typeface="serif" >
+        </TextView>
+
+        <TextView
+            android:id="@+id/TextView23"
+            android:gravity="center"
+            android:textSize="18dp"
+            android:text="Sensor"
+            android:textStyle="bold"
+            android:typeface="serif" >
+        </TextView>
+
+        <TextView
+            android:id="@+id/TextView24"
+            android:gravity="center"
+            android:textSize="18dp"
+            android:text="Data"
+            android:textStyle="bold"
+            android:typeface="serif" >
+        </TextView>
+
+        <TextView
+            android:id="@+id/TextView25"
+            android:gravity="center"
+            android:textSize="18dp"
+            android:text="Sensor"
+            android:textStyle="bold"
+            android:typeface="serif" >
+        </TextView>
+
+        <TextView
+            android:id="@+id/textView26"
+            android:gravity="center"
+            android:textSize="18dp"
+            android:text="Data"
+            android:textStyle="bold"
+            android:typeface="serif" >
+        </TextView>
+    </TableRow>
+
+    <TableRow
+        android:id="@+id/tableRow3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" >
+
+        <TextView
+            android:id="@+id/textView31"
+            android:gravity="center_horizontal"
+            android:textSize="18dp"
+            android:text="@string/accel_x_string"
+            android:textStyle="bold"
+            android:typeface="serif"  >
+        </TextView>
+
+        <TextView
+            android:id="@+id/a_x_value_view"
+            android:textSize="18dp"
+            android:gravity="center_horizontal">
+        </TextView>
+
+        <TextView
+            android:id="@+id/textView33"
+            android:gravity="center_horizontal"
+            android:textSize="18dp"
+            android:text="@string/gyro_x_string"
+            android:textStyle="bold"
+            android:typeface="serif" >
+        </TextView>
+
+        <TextView
+            android:id="@+id/g_x_value_view"
+            android:textSize="18dp"
+            android:gravity="center_horizontal">
+        </TextView>
+
+        <TextView
+            android:id="@+id/textView35"
+            android:gravity="center_horizontal"
+            android:textSize="18dp"
+            android:text="@string/euler_x_string"
+            android:textStyle="bold"
+            android:typeface="serif" >
+        </TextView>
+
+        <TextView
+            android:id="@+id/e_x_rv_value_view"
+            android:textSize="18dp"
+            android:gravity="center_horizontal">
+        </TextView>
+    </TableRow>
+
+    <TableRow
+        android:id="@+id/tableRow4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" >
+
+        <TextView
+            android:id="@+id/textView41"
+            android:gravity="center_horizontal"
+            android:textSize="18dp"
+            android:text="@string/accel_y_string"
+            android:textStyle="bold"
+            android:typeface="serif" >
+        </TextView>
+
+        <TextView
+            android:id="@+id/a_y_value_view"
+            android:textSize="18dp"
+            android:gravity="center_horizontal">
+        </TextView>
+
+        <TextView
+            android:id="@+id/textView43"
+            android:gravity="center_horizontal"
+            android:textSize="18dp"
+            android:text="@string/gyro_y_string"
+            android:textStyle="bold"
+            android:typeface="serif"  >
+        </TextView>
+
+        <TextView
+            android:id="@+id/g_y_value_view"
+            android:gravity="center_horizontal"
+            android:textSize="18dp">
+        </TextView>
+
+        <TextView
+            android:id="@+id/textView45"
+            android:gravity="center_horizontal"
+            android:textSize="18dp"
+            android:text="@string/euler_y_string"
+            android:textStyle="bold"
+            android:typeface="serif"  >
+        </TextView>
+
+        <TextView
+            android:id="@+id/e_y_rv_value_view"
+            android:textSize="18dp"
+            android:gravity="center_horizontal">
+        </TextView>
+    </TableRow>
+
+    <TableRow
+        android:id="@+id/tableRow5"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" >
+
+        <TextView
+            android:id="@+id/textView51"
+            android:gravity="center_horizontal"
+            android:textSize="18dp"
+            android:text="@string/accel_z_string"
+            android:textStyle="bold"
+            android:typeface="serif"  >
+        </TextView>
+
+        <TextView
+            android:id="@+id/a_z_value_view"
+            android:gravity="center_horizontal"
+            android:textSize="18dp">
+        </TextView>
+
+        <TextView
+            android:id="@+id/textView53"
+            android:gravity="center_horizontal"
+            android:textSize="18dp"
+            android:text="@string/gyro_z_string"
+            android:textStyle="bold"
+            android:typeface="serif"  >
+        </TextView>
+
+        <TextView
+            android:id="@+id/g_z_value_view"
+            android:gravity="center_horizontal"
+            android:textSize="18dp">
+        </TextView>
+
+        <TextView
+            android:id="@+id/textView55"
+            android:gravity="center_horizontal"
+            android:textSize="18dp"
+            android:text="@string/euler_z_string"
+            android:textStyle="bold"
+            android:typeface="serif" >
+        </TextView>
+
+        <TextView
+            android:id="@+id/e_z_rv_value_view"
+            android:gravity="center_horizontal"
+            android:textSize="18dp">
+        </TextView>
+    </TableRow>
+
+    <TableRow
+        android:id="@+id/tableRow6"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal" >
+        <TextView></TextView>
+        <TextView></TextView>
+        <TextView></TextView>
+        <TextView></TextView>
+        <Button android:id="@+id/reset_rv_button"
+            android:layout_width="40dp"
+            android:layout_height="34dp"
+            android:layout_alignParentBottom="true"
+            android:textSize="12dp"
+            android:text="@string/reset_rv" >
+        </Button>
+
+    </TableRow>
+
+</TableLayout>

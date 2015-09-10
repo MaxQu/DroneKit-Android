@@ -33,5 +33,20 @@
     <string name="label_action_button_open">Open</string>
     <string name="label_view_category_active">Active</string>
     <string name="label_view_category_recommended">Recommended</string>
+    <string name="label_view_category_attitude">Attitude</string>
+
+
+    <string name="accel_y_string">Accel Y:</string>
+    <string name="accel_x_string">Accel X:</string>
+    <string name="accel_z_string">Accel Z:</string>
+    <string name="gyro_y_string">Gyro Y:</string>
+    <string name="gyro_x_string">Gyro X:</string>
+    <string name="gyro_z_string">Gyro Z:</string>
+    <string name="euler_y_string">Yaw:</string>
+    <string name="euler_x_string">Pitch:</string>
+    <string name="euler_z_string">Roll:</string>
+    <string name="rv_string">Rot V:</string>
+    <string name="reset_rv">Lock</string>
+
 
 </resources>
