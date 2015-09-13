@@ -29,6 +29,27 @@ public class GCSEvent {
      */
     public static final String ACTION_VEHICLE_DISCONNECTION = PACKAGE_NAME + ".action.VEHICLE_DISCONNECTION";
 
+    /**
+     * GCS acceleration vector attribute events.
+     */
+    public static final String GCS_ACCEL_UPDATED = PACKAGE_NAME + ".GCS_ACCEL_UPDATED";
+
+    /**
+     * GCS gyro vector attribute events.
+     */
+    public static final String GCS_GYRO_UPDATED = PACKAGE_NAME + ".GCS_GYRO_UPDATED";
+
+    /**
+     * GCS Attitude attribute events.
+     */
+    public static final String GCS_ATTITUDE_UPDATED = PACKAGE_NAME + ".GCS_ATTITUDE_UPDATED";
+
+    /**
+     * GCS Initial Attitude lock events.
+     */
+    public static final String GCS_INIT_ATTITUDE_LOCKED = PACKAGE_NAME + ".GCS_INIT_ATTITUDE_LOCKED";
+
+
     //Not instantiable
     private GCSEvent(){}
 }

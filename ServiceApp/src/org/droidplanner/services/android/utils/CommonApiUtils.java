@@ -48,6 +48,7 @@ import com.o3dr.services.android.lib.model.AbstractCommandListener;
 import com.o3dr.services.android.lib.model.ICommandListener;
 
 import org.droidplanner.services.android.core.MAVLink.MavLinkArm;
+import org.droidplanner.services.android.core.MAVLink.MavLinkRC;
 import org.droidplanner.services.android.core.MAVLink.command.doCmd.MavLinkDoCmds;
 import org.droidplanner.services.android.core.drone.DroneManager;
 import org.droidplanner.services.android.core.drone.autopilot.MavLinkDrone;
@@ -927,6 +928,28 @@ public class CommonApiUtils {
                 Timber.e(e, e.getMessage());
             }
         }
+    }
+
+    public static void followGCSGesture(MavLinkDrone drone, Attitude gcsAttLocked, Attitude gcsAtt, boolean force, ICommandListener listener) {
+        if (drone == null)
+            return;
+
+        GuidedPoint guidedPoint = drone.getGuidedPoint();
+        if (guidedPoint.isInitialized()) {
+            guidedPoint.gcsChangeGesture(gcsAttLocked, gcsAtt, listener);
+        } else if (force) {
+            try {
+                guidedPoint.followGCSGesture(gcsAttLocked, gcsAtt);
+            } catch (Exception e) {
+                Timber.e(e, e.getMessage());
+            }
+        }
+    }
+
+    public static void sendRcOverride(MavLinkDrone drone,int[] rc_values) {
+        if (drone == null)
+            return;
+        MavLinkRC.sendRcOverrideMsg(drone, rc_values);
     }
 
     public static void setGuidedAltitude(MavLinkDrone drone, double altitude) {

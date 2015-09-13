@@ -5,6 +5,8 @@ import android.os.RemoteException;
 import android.util.Log;
 
 import com.o3dr.services.android.lib.drone.connection.ConnectionParameter;
+import com.o3dr.services.android.lib.drone.property.Attitude;
+import com.o3dr.services.android.lib.drone.property.Vector3;
 import com.o3dr.services.android.lib.gcs.event.GCSEvent;
 import com.o3dr.services.android.lib.model.IApiListener;
 import com.o3dr.services.android.lib.model.IDroidPlannerServices;
@@ -80,5 +82,25 @@ final class DPServices extends IDroidPlannerServices.Stub {
         if(dpApi instanceof DroneApi) {
             serviceRef.releaseDroneApi(((DroneApi) dpApi).getOwnerId());
         }
+    }
+
+    @Override
+    public Attitude getGCSAttitude() {
+        return serviceRef.getGCSAttitude();
+    }
+
+    @Override
+    public Attitude getGCSAttitudeLocked() {
+        return serviceRef.getGCSAttitudeLocked();
+    }
+
+    @Override
+    public Vector3 getGCSGyro() {
+        return serviceRef.getGCSGyro();
+    }
+
+    @Override
+    public Vector3 getGCSAccel() {
+        return serviceRef.getGCSAccel();
     }
 }

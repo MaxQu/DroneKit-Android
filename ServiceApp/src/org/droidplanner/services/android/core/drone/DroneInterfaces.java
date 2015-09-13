@@ -48,6 +48,11 @@ public class DroneInterfaces {
 		ATTITUDE,
 
 		/**
+		 * Denotes gcs attitude change event.
+		 */
+		GCS_ATTITUDE,
+
+		/**
          *
          */
 		RADIO,

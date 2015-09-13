@@ -11,6 +11,7 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import org.droidplanner.services.android.R;
+import org.droidplanner.services.android.api.DroidPlannerService;
 import org.droidplanner.services.android.ui.widget.TabPageIndicator;
 
 /**
@@ -19,8 +20,12 @@ import org.droidplanner.services.android.ui.widget.TabPageIndicator;
 public class ViewCategoryFragment extends Fragment {
 
     private static final String EXTRA_SELECTED_CATEGORY_INDEX = "extra_selected_category_index";
-
+    private static DroidPlannerService serviceRef;
     private ViewPager viewPager;
+
+    public void setDPService(DroidPlannerService service) {
+        serviceRef = service;
+    }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup parent, Bundle savedInstanceState) {

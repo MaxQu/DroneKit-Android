@@ -483,6 +483,9 @@ public class MAVLinkPacket implements Serializable {
             
             case msg_command_ack.MAVLINK_MSG_ID_COMMAND_ACK:
                 return  new msg_command_ack(this);
+
+            case msg_gcs_gesture_ypr_local_bf.MAVLINK_MSG_ID_GCS_GESTURE_YPR_LOCAL_BF:
+                return  new msg_gcs_gesture_ypr_local_bf(this);
             
             case msg_manual_setpoint.MAVLINK_MSG_ID_MANUAL_SETPOINT:
                 return  new msg_manual_setpoint(this);

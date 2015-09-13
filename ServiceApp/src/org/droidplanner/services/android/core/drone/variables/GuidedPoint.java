@@ -3,6 +3,7 @@ package org.droidplanner.services.android.core.drone.variables;
 import android.os.RemoteException;
 
 import com.o3dr.services.android.lib.drone.attribute.error.CommandExecutionError;
+import com.o3dr.services.android.lib.drone.property.Attitude;
 import com.o3dr.services.android.lib.model.ICommandListener;
 import com.o3dr.services.android.lib.model.SimpleCommandListener;
 
@@ -118,8 +119,8 @@ public class GuidedPoint extends DroneVariable implements OnDroneListener {
                 }
 
                 @Override
-                public void onError(int executionError){
-                    if(listener != null){
+                public void onError(int executionError) {
+                    if (listener != null) {
                         try {
                             listener.onError(executionError);
                         } catch (RemoteException e) {
@@ -129,8 +130,8 @@ public class GuidedPoint extends DroneVariable implements OnDroneListener {
                 }
 
                 @Override
-                public void onTimeout(){
-                    if(listener != null){
+                public void onTimeout() {
+                    if (listener != null) {
                         try {
                             listener.onTimeout();
                         } catch (RemoteException e) {
@@ -273,6 +274,21 @@ public class GuidedPoint extends DroneVariable implements OnDroneListener {
         }
     }
 
+    public void gcsChangeGesture(Attitude gcsAttLocked, Attitude gcsAtt, final ICommandListener listener) {
+        changeToGuidedMode(myDrone, listener);
+        switch (state) {
+            case UNINITIALIZED:
+                break;
+
+            case IDLE:
+                state = GuidedStates.ACTIVE;
+                /** FALL THROUGH **/
+            case ACTIVE:
+                followGCSGesture(gcsAttLocked, gcsAtt);
+                break;
+        }
+    }
+
     private void changeCoordAndVelocity(Coord2D coord, double xVel, double yVel, double zVel) {
         switch (state) {
             case UNINITIALIZED:
@@ -291,6 +307,19 @@ public class GuidedPoint extends DroneVariable implements OnDroneListener {
     private void sendGuidedPointAndVelocity(double xVel, double yVel, double zVel) {
         if (state == GuidedStates.ACTIVE) {
             forceSendGuidedPointAndVelocity(myDrone, coord, altitude, xVel, yVel, zVel);
+        }
+    }
+
+    public void followGCSGesture(Attitude gcsAttLocked, Attitude gcsAtt) {
+        if (state == GuidedStates.ACTIVE) {
+            forceFollowGCSGesture(myDrone, gcsAttLocked, gcsAtt);
+        }
+    }
+
+    public static void forceFollowGCSGesture(MavLinkDrone drone, Attitude gcsAttLocked, Attitude gcsAtt) {
+        drone.notifyDroneEvent(DroneEventsType.GCS_ATTITUDE);
+        if (gcsAttLocked != null && gcsAtt != null) {
+            MavLinkModes.sendGCSGesture(drone, gcsAttLocked, gcsAtt);
         }
     }
 

@@ -45,6 +45,7 @@ import com.o3dr.services.android.lib.drone.attribute.AttributeEventExtra;
 import com.o3dr.services.android.lib.drone.attribute.AttributeType;
 import com.o3dr.services.android.lib.drone.attribute.error.CommandExecutionError;
 import com.o3dr.services.android.lib.drone.mission.action.MissionActions;
+import com.o3dr.services.android.lib.drone.property.Attitude;
 import com.o3dr.services.android.lib.drone.property.DroneAttribute;
 import com.o3dr.services.android.lib.drone.property.Signal;
 import com.o3dr.services.android.lib.drone.property.VehicleMode;
@@ -493,6 +494,18 @@ public abstract class ArduPilot implements MavLinkDrone {
                 break;
 
             //GUIDED ACTIONS
+            case GuidedActions.ACTION_RC_OVERRIDE:
+                int rc_channel = data.getInt(GuidedActions.EXTRA_RC_CHANNEL);
+                int rc_value = data.getInt(GuidedActions.EXTRA_RC_VALUE);
+                int[] rc_values = new int[] {0,0,0,0,0,0,0,0};
+                rc_values[rc_channel-1] = rc_value;
+                CommonApiUtils.sendRcOverride(this, rc_values);
+
+            case GuidedActions.ACTION_FOLLOW_GCS_GESTURE:
+                Attitude gcsAttLocked = data.getParcelable(GuidedActions.EXTRA_GCS_ATTITUDE_LOCKED);
+                Attitude gcsAtt = data.getParcelable(GuidedActions.EXTRA_GCS_ATTITUDE);
+                CommonApiUtils.followGCSGesture(this,gcsAttLocked,gcsAtt,true,listener);
+
             case GuidedActions.ACTION_DO_GUIDED_TAKEOFF:
                 double takeoffAltitude = data.getDouble(GuidedActions.EXTRA_ALTITUDE);
                 CommonApiUtils.doGuidedTakeoff(this, takeoffAltitude, listener);

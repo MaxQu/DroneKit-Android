@@ -14,9 +14,11 @@ import android.util.Log;
 import com.o3dr.android.client.apis.ApiAvailability;
 import com.o3dr.android.client.interfaces.TowerListener;
 import com.o3dr.services.android.lib.drone.connection.ConnectionParameter;
+import com.o3dr.services.android.lib.drone.property.Attitude;
 import com.o3dr.services.android.lib.model.IDroidPlannerServices;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Created by fhuya on 11/12/14.
@@ -26,6 +28,8 @@ public class ControlTower {
     private static final String TAG = ControlTower.class.getSimpleName();
 
     private final Intent serviceIntent = new Intent(IDroidPlannerServices.class.getName());
+
+    private final AtomicReference<IDroidPlannerServices> towerApiRef = new AtomicReference<>(null);
 
     private final IBinder.DeathRecipient binderDeathRecipient = new IBinder.DeathRecipient() {
         @Override
@@ -172,5 +176,34 @@ public class ControlTower {
 
     String getApplicationId() {
         return context.getPackageName();
+    }
+
+    public Attitude getGCSAttitude() {
+        Attitude attitude = new Attitude(0,0,0);
+        if (isTowerConnected()) {
+            try {
+                attitude = o3drServices.getGCSAttitude();
+            } catch (RemoteException var7) {
+                this.handleRemoteException(var7);
+            }
+        }
+        return attitude;
+    }
+
+    public Attitude getGCSAttitudeLocked() {
+        Attitude attitude = new Attitude(0,0,0);
+        if (isTowerConnected()) {
+            try {
+                attitude = o3drServices.getGCSAttitudeLocked();
+            } catch (RemoteException var7) {
+                this.handleRemoteException(var7);
+            }
+        }
+        return attitude;
+    }
+
+    private void handleRemoteException(RemoteException e) {
+
+        Log.e(TAG, "Remote gcs attitude msg broken: ", e);
     }
 }

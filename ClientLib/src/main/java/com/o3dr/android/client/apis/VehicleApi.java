@@ -6,6 +6,7 @@ import com.o3dr.android.client.Drone;
 import com.o3dr.services.android.lib.coordinate.LatLong;
 import com.o3dr.services.android.lib.drone.attribute.AttributeType;
 import com.o3dr.services.android.lib.drone.connection.ConnectionParameter;
+import com.o3dr.services.android.lib.drone.property.Attitude;
 import com.o3dr.services.android.lib.drone.property.Gps;
 import com.o3dr.services.android.lib.drone.property.Parameters;
 import com.o3dr.services.android.lib.drone.property.VehicleMode;
@@ -20,9 +21,15 @@ import static com.o3dr.services.android.lib.drone.action.ConnectionActions.EXTRA
 import static com.o3dr.services.android.lib.drone.action.GuidedActions.ACTION_DO_GUIDED_TAKEOFF;
 import static com.o3dr.services.android.lib.drone.action.GuidedActions.ACTION_SEND_GUIDED_POINT;
 import static com.o3dr.services.android.lib.drone.action.GuidedActions.ACTION_SET_GUIDED_ALTITUDE;
+import static com.o3dr.services.android.lib.drone.action.GuidedActions.ACTION_FOLLOW_GCS_GESTURE;
+import static com.o3dr.services.android.lib.drone.action.GuidedActions.EXTRA_GCS_ATTITUDE;
+import static com.o3dr.services.android.lib.drone.action.GuidedActions.EXTRA_GCS_ATTITUDE_LOCKED;
 import static com.o3dr.services.android.lib.drone.action.GuidedActions.EXTRA_ALTITUDE;
 import static com.o3dr.services.android.lib.drone.action.GuidedActions.EXTRA_FORCE_GUIDED_POINT;
 import static com.o3dr.services.android.lib.drone.action.GuidedActions.EXTRA_GUIDED_POINT;
+import static com.o3dr.services.android.lib.drone.action.GuidedActions.ACTION_RC_OVERRIDE;
+import static com.o3dr.services.android.lib.drone.action.GuidedActions.EXTRA_RC_CHANNEL;
+import static com.o3dr.services.android.lib.drone.action.GuidedActions.EXTRA_RC_VALUE;
 import static com.o3dr.services.android.lib.drone.action.ParameterActions.ACTION_REFRESH_PARAMETERS;
 import static com.o3dr.services.android.lib.drone.action.ParameterActions.ACTION_WRITE_PARAMETERS;
 import static com.o3dr.services.android.lib.drone.action.ParameterActions.EXTRA_PARAMETERS;
@@ -111,6 +118,26 @@ public class VehicleApi extends Api {
         params.putBoolean(EXTRA_ARM, arm);
         params.putBoolean(EXTRA_EMERGENCY_DISARM, emergencyDisarm);
         drone.performAsyncActionOnDroneThread(new Action(ACTION_ARM, params), listener);
+    }
+
+    /**
+     * Change the vehicle mode for the connected drone.
+     *
+     * @param gcsAttLocked gcs attitude locked.
+     * @param gcsAtt gcs attitude.
+     */
+    public void followGCSGesture(Attitude gcsAttLocked, Attitude gcsAtt) {
+        Bundle params = new Bundle();
+        params.putParcelable(EXTRA_GCS_ATTITUDE, gcsAtt);
+        params.putParcelable(EXTRA_GCS_ATTITUDE_LOCKED, gcsAttLocked);
+        drone.performAsyncActionOnDroneThread(new Action(ACTION_FOLLOW_GCS_GESTURE, params), null);
+    }
+
+    public void sendRcOverride(int channel, int value) {
+        Bundle params = new Bundle();
+        params.putInt(EXTRA_RC_CHANNEL,channel);
+        params.putInt(EXTRA_RC_VALUE,value);
+        drone.performAsyncActionOnDroneThread(new Action(ACTION_RC_OVERRIDE, params), null);
     }
 
     /**

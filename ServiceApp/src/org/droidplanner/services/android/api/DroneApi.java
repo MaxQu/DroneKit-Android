@@ -393,6 +393,9 @@ public final class DroneApi extends IDroneApi.Stub implements DroneEventsListene
             case RC_OUT:
                 break;
 
+            case GCS_ATTITUDE:
+                break;
+
             case ARMING_STARTED:
             case ARMING:
                 droneEvent = AttributeEvent.STATE_ARMING;

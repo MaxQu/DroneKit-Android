@@ -62,6 +62,7 @@ public class MainActivity extends ActionBarActivity {
         if (savedInstanceState == null) {
             final FragmentManager fm = getSupportFragmentManager();
             ViewCategoryFragment categoryViewFragment = new ViewCategoryFragment();
+            //categoryViewFragment.setDPService(droneAccess.getDPService());
             fm.beginTransaction().add(R.id.fragment_container, categoryViewFragment).commit();
         }
     }

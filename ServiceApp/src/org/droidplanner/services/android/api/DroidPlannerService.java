@@ -4,8 +4,14 @@ import android.annotation.SuppressLint;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -13,16 +19,26 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.support.v4.content.LocalBroadcastManager;
 import android.text.TextUtils;
+import android.util.Log;
+import android.widget.TextView;
 
 import com.google.android.gms.analytics.HitBuilders;
 import com.o3dr.services.android.lib.drone.connection.ConnectionParameter;
 import com.o3dr.services.android.lib.drone.connection.ConnectionType;
 import com.o3dr.services.android.lib.drone.mission.item.complex.CameraDetail;
+import com.o3dr.services.android.lib.drone.property.Attitude;
+import com.o3dr.services.android.lib.drone.property.Vector3;
+import com.o3dr.services.android.lib.gcs.event.GCSEvent;
 import com.o3dr.services.android.lib.model.IApiListener;
 import com.o3dr.services.android.lib.model.IDroidPlannerServices;
 
 import org.droidplanner.services.android.core.MAVLink.connection.MavLinkConnection;
 import org.droidplanner.services.android.core.MAVLink.connection.MavLinkConnectionListener;
+import org.droidplanner.services.android.core.helpers.orientation.AxisAngle;
+import org.droidplanner.services.android.core.helpers.orientation.EulerAngles;
+import org.droidplanner.services.android.core.helpers.orientation.GravityVector;
+import org.droidplanner.services.android.core.helpers.orientation.Quaternion;
+import org.droidplanner.services.android.core.helpers.orientation.Vector3f;
 import org.droidplanner.services.android.core.survey.CameraInfo;
 import org.droidplanner.services.android.R;
 import org.droidplanner.services.android.communication.connection.AndroidMavLinkConnection;
@@ -46,11 +62,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import timber.log.Timber;
 
+import static android.util.FloatMath.cos;
+import static android.util.FloatMath.sin;
+import static android.util.FloatMath.sqrt;
+
 /**
  * 3DR Services background service implementation.
  */
-public class DroidPlannerService extends Service {
-
+public class DroidPlannerService extends Service implements SensorEventListener {
+    private final static String TAG = MainActivity.class.getSimpleName();
     /**
      * Status bar notification id
      */
@@ -64,11 +84,68 @@ public class DroidPlannerService extends Service {
     public static final String ACTION_KICK_START_DRONESHARE_UPLOADS = Utils.PACKAGE_NAME + ".ACTION_KICK_START_DRONESHARE_UPLOADS";
     public static final String ACTION_RELEASE_API_INSTANCE = Utils.PACKAGE_NAME + ".action.RELEASE_API_INSTANCE";
     public static final String EXTRA_API_INSTANCE_APP_ID = "extra_api_instance_app_id";
+    public static final String ACTION_GCS_GYRO_UPDATED = GCSEvent.GCS_GYRO_UPDATED;
+    public static final String ACTION_GCS_ATTITUDE_UPDATED = GCSEvent.GCS_ATTITUDE_UPDATED;
+    public static final String ACTION_GCS_ACCEL_UPDATED = GCSEvent.GCS_ACCEL_UPDATED;
+    public static final String ACTION_GCS_INIT_ATT_LOCKED = GCSEvent.GCS_INIT_ATTITUDE_LOCKED;
+
+    /**
+     * used to calculate gcs attitude
+     */
+    private static final int UPDATE_THRESHOLD = 10;
+    private static final float EPSILON = 0.01f;
+    private static final float NS2S = 1.0f / 1000000000.0f;
+
+    private SensorManager mSensorManager;
+    private Sensor mAccelerometer, mGyroscope;
+
+    //Use for send data between interfaces
+    private static final Attitude gcsAtt = new Attitude();
+    private static final Attitude gcsAttLocked = new Attitude();
+    private static final Vector3 gcsGyro = new Vector3();
+    private static final Vector3 gcsAccel = new Vector3();
+
+    //Raw sensor data storage
+    private static final GravityVector accelVector = new GravityVector(0,0,0);
+    private static final Vector3f gyroVector= new Vector3f(0,0,0);
+    //delta means the instataneous rotation segment representation
+    private static final Quaternion deltaQuaternion = new Quaternion(0,0,0,1); //Quaternion, initialized at zero rotation
+    private static final Quaternion quaternionCurrent = new Quaternion(0,0,0,1); //initialized at zero rotation
+    //current rotation representation
+    private static final EulerAngles eulerQuatCurrent=new EulerAngles(0,0,0);
+    //freeze rotation representation when hit Lock
+    private static final Quaternion quaternionFreeze = new Quaternion(0,0,0,1);
+    private static final EulerAngles eulerQuatFreeze = new EulerAngles(0,0,0);
+    //The difference rotation between freeze and current
+    private static final EulerAngles diffEulerQuat = new EulerAngles(0,0,0);
+    //use to perform gravity correction
+    private static final AxisAngle axisAngle=new AxisAngle(0,0,0,0);
+    private static final Quaternion correctQuat= new Quaternion(0,0,0,1);
+
+    //For visualization update
+    private static float etimestamp; //time log for calcualte euler angles
+    private long aLastUpdate, gLastUpdate;
+
+    //For synchronization
+    protected final Object syncToken = new Object();
+
+    private final static IntentFilter gcsInitAttLockFilter = new IntentFilter();
+    static {
+        gcsInitAttLockFilter.addAction(ACTION_GCS_INIT_ATT_LOCKED);
+    }
+
+    private final BroadcastReceiver gcsInitAttLockReceiver = new BroadcastReceiver() {
+        public void onReceive(Context context, Intent intent) {
+//            Log.e(TAG,"message received");
+            gcsInitAttLock();
+        }
+    };
 
     /**
      * Used to broadcast service events.
      */
     private LocalBroadcastManager lbm;
+    private Context context;
 
     /**
      * Stores drone api instances per connected client. The client are denoted by their app id.
@@ -106,6 +183,7 @@ public class DroidPlannerService extends Service {
         DroneApi droneApi = new DroneApi(this, listener, appId);
         droneApiStore.put(appId, droneApi);
         lbm.sendBroadcast(new Intent(ACTION_DRONE_CREATED));
+        broadcastGCSAttData();
         updateForegroundNotification();
         return droneApi;
     }
@@ -124,6 +202,7 @@ public class DroidPlannerService extends Service {
             Timber.d("Releasing drone api instance for " + appId);
             droneApi.destroy();
             lbm.sendBroadcast(new Intent(ACTION_DRONE_DESTROYED));
+            broadcastGCSAttData();
             updateForegroundNotification();
         }
     }
@@ -363,15 +442,137 @@ public class DroidPlannerService extends Service {
         super.onCreate();
         Timber.d("Creating 3DR Services.");
 
-        final Context context = getApplicationContext();
+        context = getApplicationContext();
 
         mavlinkApi = new MavLinkServiceApi(this);
         droneAccess = new DroneAccess(this);
         dpServices = new DPServices(this);
         lbm = LocalBroadcastManager.getInstance(context);
         this.cameraInfoLoader = new CameraInfoLoader(context);
-
         updateForegroundNotification();
+        Log.e(TAG, "DP service started");
+
+        context.registerReceiver(gcsInitAttLockReceiver, gcsInitAttLockFilter);
+
+        mSensorManager = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
+        if (null == (mAccelerometer = mSensorManager
+                .getDefaultSensor(Sensor.TYPE_ACCELEROMETER)) ||
+                null == (mGyroscope = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)))
+            return;
+
+        mSensorManager.registerListener(this, mAccelerometer,
+                SensorManager.SENSOR_DELAY_UI);
+
+        aLastUpdate = System.currentTimeMillis();
+
+        mSensorManager.registerListener(this, mGyroscope,
+                SensorManager.SENSOR_DELAY_UI);
+
+        gLastUpdate = System.currentTimeMillis();
+
+        broadcastGCSAttData();
+
+    }
+
+    void gcsInitAttLock() {
+        quaternionFreeze.set(quaternionCurrent);
+    }
+
+    // Process new reading
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+
+        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            long actualTime = System.currentTimeMillis();
+//            if ((etimestamp !=0) && (actualTime - aLastUpdate > UPDATE_THRESHOLD)) {
+            if (etimestamp != 0) {
+                synchronized (syncToken) {
+                    accelVector.setXYZ(event.values);
+                }
+            }
+            aLastUpdate = actualTime;
+        }
+
+        if (event.sensor.getType() == Sensor.TYPE_GYROSCOPE) {
+//			handle gyro reading
+            long actualTime = System.currentTimeMillis();
+            gyroVector.setXYZ(event.values);
+
+//            if ((etimestamp != 0) && (actualTime - gLastUpdate > UPDATE_THRESHOLD)) {
+            if (etimestamp != 0) {
+                final float dT = (event.timestamp - etimestamp) * NS2S;
+                // Axis of the rotation sample, not normalized yet.
+                float axisX = gyroVector.getX();
+                float axisY = gyroVector.getY();
+                float axisZ = gyroVector.getZ();
+
+                // Calculate the angular speed of the sample
+                float omegaMagnitude = sqrt(axisX * axisX + axisY * axisY + axisZ * axisZ);
+
+                // Normalize the rotation vector if it's big enough to get the axis
+                // (that is, EPSILON should represent your maximum allowable margin of error)
+                //this normalization make sure the [axisX, axisY, axisZ] is a unit vector
+                if (omegaMagnitude > EPSILON) {
+                    axisX /= omegaMagnitude;
+                    axisY /= omegaMagnitude;
+                    axisZ /= omegaMagnitude;
+                }
+
+                // Integrate around this axis with the angular speed by the timestep
+                // in order to get a delta rotation from this sample over the timestep
+                // We will convert this axis-angle representation of the delta rotation
+                // into a quaternion before turning it into the rotation matrix.
+                float thetaOverTwo = omegaMagnitude * dT / 2.0f;
+                float sinThetaOverTwo = sin(thetaOverTwo);
+                float cosThetaOverTwo = cos(thetaOverTwo);
+                //the rotation vector is a quaternion
+                deltaQuaternion.setX(sinThetaOverTwo * axisX);
+                deltaQuaternion.setY(sinThetaOverTwo * axisY);
+                deltaQuaternion.setZ(sinThetaOverTwo * axisZ);
+                deltaQuaternion.setW(cosThetaOverTwo);
+
+
+            /////////////////////////////////////////////////////////
+            //Calculate Euler Angle, using Quat//////////////////////
+            /////////////////////////////////////////////////////////
+            //R b to e is recursive, R=Rz*Ry*Rx, see ref2. page 22
+            synchronized (syncToken) {
+                quaternionCurrent.multiplyQuat(deltaQuaternion, quaternionCurrent);
+                quaternionCurrent.toCorrectAxisAngleByGravity(accelVector, axisAngle);
+                axisAngle.toQuaternion(correctQuat);
+                quaternionCurrent.multiplyQuat(correctQuat, quaternionCurrent);
+                quaternionCurrent.toEulerAngles(eulerQuatCurrent);
+                quaternionFreeze.getDiffQuaternionToTarget(quaternionCurrent).toEulerAngles(diffEulerQuat);
+                quaternionFreeze.toEulerAngles(eulerQuatFreeze);
+            }
+            gLastUpdate = actualTime;
+            }
+            etimestamp = event.timestamp;
+        }
+
+        broadcastGCSAttData();
+
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        // N/A
+    }
+
+    public Attitude getGCSAttitude() {
+        return gcsAtt;
+    }
+
+    public Attitude getGCSAttitudeLocked() {
+        return gcsAttLocked;
+    }
+
+    public Vector3 getGCSGyro() {
+        return gcsGyro;
+    }
+
+    public Vector3 getGCSAccel() {
+        return gcsAccel;
     }
 
     @SuppressLint("NewApi")
@@ -417,7 +618,8 @@ public class DroidPlannerService extends Service {
 
         mavConnections.clear();
         dpServices.destroy();
-
+        mSensorManager.unregisterListener(this);
+        context.unregisterReceiver(gcsInitAttLockReceiver);
         stopForeground(true);
     }
 
@@ -439,8 +641,50 @@ public class DroidPlannerService extends Service {
             }
         }
 
+
+        mSensorManager.registerListener(this, mAccelerometer,
+                SensorManager.SENSOR_DELAY_UI);
+
+        aLastUpdate = System.currentTimeMillis();
+
+        mSensorManager.registerListener(this, mGyroscope,
+                SensorManager.SENSOR_DELAY_UI);
+
+        gLastUpdate = System.currentTimeMillis();
+
+
+        broadcastGCSAttData();
         stopSelf();
         return START_NOT_STICKY;
+    }
+
+    private void broadcastGCSAttData() {
+        gcsAttLocked.setYaw((double) eulerQuatFreeze.getX());
+        gcsAttLocked.setPitch((double) eulerQuatFreeze.getY());
+        gcsAttLocked.setRoll((double) eulerQuatFreeze.getZ());
+
+        gcsAccel.setX((double) accelVector.getX());
+        gcsAccel.setY((double) accelVector.getY());
+        gcsAccel.setZ((double) accelVector.getZ());
+        lbm.sendBroadcast(new Intent(ACTION_GCS_ACCEL_UPDATED));
+
+        gcsGyro.setX((double) gyroVector.getX());
+        gcsGyro.setY((double) gyroVector.getY());
+        gcsGyro.setZ((double) gyroVector.getZ());
+        lbm.sendBroadcast(new Intent(ACTION_GCS_GYRO_UPDATED));
+
+        gcsAtt.setYaw((double) diffEulerQuat.getX());
+        gcsAtt.setPitch((double) diffEulerQuat.getY());
+        gcsAtt.setRoll((double) diffEulerQuat.getZ());
+        //formulate the intent
+//        Intent gcsAttIntent = new Intent(ACTION_GCS_ATTITUDE_UPDATED);
+//        gcsAttIntent.putExtra(ACTION_GCS_ATTITUDE_UPDATED, gcsAtt);
+//        lbm.sendBroadcast(gcsAttIntent);
+        lbm.sendBroadcast(new Intent(ACTION_GCS_ATTITUDE_UPDATED));
+        context.sendBroadcast(new Intent(ACTION_GCS_ATTITUDE_UPDATED));
+//      Log.e(TAG, "msg sent");
+//      Log.e(TAG,ACTION_GCS_ATTITUDE_UPDATED);
+//      Log.e(TAG, gcsAtt.toString());
     }
 
 }

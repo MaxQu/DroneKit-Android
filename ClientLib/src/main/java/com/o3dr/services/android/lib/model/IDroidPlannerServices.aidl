@@ -3,7 +3,8 @@ package com.o3dr.services.android.lib.model;
 
 import com.o3dr.services.android.lib.model.IDroneApi;
 import com.o3dr.services.android.lib.model.IApiListener;
-
+import com.o3dr.services.android.lib.drone.property.Attitude;
+import com.o3dr.services.android.lib.drone.property.Vector3;
 /**
 * Used to establish connection with a drone.
 */
@@ -40,4 +41,24 @@ interface IDroidPlannerServices {
     * @param requesterId id for the application requesting the information.
     */
     Bundle[] getConnectedApps(String requesterId);
+
+    /**
+    * Retrieve the GCS attitude data
+    */
+    Attitude getGCSAttitude();
+
+    /**
+    * Retrieve the GCS attitude lock data
+    */
+    Attitude getGCSAttitudeLocked();
+
+    /**
+    * Retrieve the GCS gyro data
+    */
+    Vector3 getGCSGyro();
+
+    /**
+    * Retrieve the GCS accelerometer data
+    */
+    Vector3 getGCSAccel();
 }

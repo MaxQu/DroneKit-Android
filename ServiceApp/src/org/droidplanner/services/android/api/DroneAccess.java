@@ -19,4 +19,8 @@ public final class DroneAccess extends Binder {
     public List<DroneApi> getDroneApiList() {
         return new ArrayList<>(serviceRef.droneApiStore.values());
     }
+
+    public DroidPlannerService getDPService() {
+        return serviceRef;
+    }
 }

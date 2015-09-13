@@ -1,70 +1,101 @@
 package org.droidplanner.services.android.ui.fragment;
 
 
+import android.app.Activity;
+import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
+import android.content.Intent;
+import android.content.IntentFilter;
+
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
+import android.support.v4.content.LocalBroadcastManager;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
 
+import com.o3dr.services.android.lib.drone.property.Attitude;
+import com.o3dr.services.android.lib.drone.property.Vector3;
+import com.o3dr.services.android.lib.gcs.event.GCSEvent;
+
 import org.droidplanner.services.android.R;
-
-import org.droidplanner.services.android.core.helpers.orientation.AxisAngle;
+import org.droidplanner.services.android.api.DroidPlannerService;
 import org.droidplanner.services.android.core.helpers.orientation.EulerAngles;
-import org.droidplanner.services.android.core.helpers.orientation.GravityVector;
-import org.droidplanner.services.android.core.helpers.orientation.Quaternion;
-import org.droidplanner.services.android.core.helpers.orientation.Vector3f;
-
-import static android.util.FloatMath.cos;
-import static android.util.FloatMath.sin;
-import static android.util.FloatMath.sqrt;
+import org.droidplanner.services.android.ui.activity.MainActivity;
 
 /**
  * Provide a view of recommended apps that are compatible with 3DR Services.
  */
-public class GCSAttitudeAppsFragment extends Fragment implements SensorEventListener {
+public class GCSAttitudeAppsFragment extends Fragment{
 
-    private static final int UPDATE_THRESHOLD = 200;
-    private static final float EPSILON = 0.01f;
-    private static final float NS2S = 1.0f / 1000000000.0f;
+    private final static String TAG = MainActivity.class.getSimpleName();
+    public static final String ACTION_GCS_INIT_ATT_LOCKED = GCSEvent.GCS_INIT_ATTITUDE_LOCKED;
+    public static final String ACTION_GCS_GYRO_UPDATED = GCSEvent.GCS_GYRO_UPDATED;
+    public static final String ACTION_GCS_ACCEL_UPDATED = GCSEvent.GCS_ACCEL_UPDATED;
+    public static final String ACTION_GCS_ATTITUDE_UPDATED = GCSEvent.GCS_ATTITUDE_UPDATED;
 
-    private SensorManager mSensorManager;
-    private Sensor mAccelerometer, mGyroscope;
-
-    //Raw sensor data storage
-    private static final GravityVector accelVector = new GravityVector(0,0,0);
-    private static final Vector3f gyroVector= new Vector3f(0,0,0);
-    //delta means the instataneous rotation segment representation
-    private static final Quaternion deltaQuaternion = new Quaternion(0,0,0,1); //Quaternion, initialized at zero rotation
-    private static final Quaternion quaternionCurrent = new Quaternion(0,0,0,1); //initialized at zero rotation
-    //current rotation representation
-    private static final EulerAngles eulerQuatCurrent=new EulerAngles(0,0,0);
-    //freeze rotation representation when hit Lock
-    private static final Quaternion quaternionFreeze = new Quaternion(0,0,0,1);
-    //The difference rotation between freeze and current
-    private static final EulerAngles diffEulerQuat = new EulerAngles(0,0,0);
-    //use to perform gravity correction
-    private static final AxisAngle axisAngle=new AxisAngle(0,0,0,0);
-    private static final Quaternion correctQuat= new Quaternion(0,0,0,1);
+    private MainActivity parent;
+    private LocalBroadcastManager lbm;
 
     //For visualization
+    private static final long UPDATE_INTERVAL = 100;
     private TextView aXValueView, aYValueView, aZValueView;
     private TextView gXValueView, gYValueView, gZValueView;
     private TextView eXRvValueView, eYRvValueView, eZRvValueView;
+    private Vector3 gyroVector = new Vector3();
+    private Vector3 accelVector = new Vector3();
+    private Attitude attVector = new Attitude();
 
     //For visualization update
     private static float etimestamp; //time log for calcualte euler angles
-    private long aLastUpdate, gLastUpdate;
+    private long aLastUpdate, gLastUpdate, tLastUpdate;
 
-    //For synchronization
-    protected final Object syncToken = new Object();
+    private final static IntentFilter gcsAttitudeFilter = new IntentFilter();
+    static {
+        gcsAttitudeFilter.addAction(ACTION_GCS_GYRO_UPDATED);
+        gcsAttitudeFilter.addAction(ACTION_GCS_ACCEL_UPDATED);
+        gcsAttitudeFilter.addAction(ACTION_GCS_ATTITUDE_UPDATED);
+    }
+
+    private final BroadcastReceiver gcsAttEventReceiver = new BroadcastReceiver() {
+        public void onReceive(Context context, Intent intent) {
+            final String action = intent.getAction();
+            switch (action) {
+                case ACTION_GCS_GYRO_UPDATED:
+                    updateGCSGyroView();
+                    break;
+
+                case ACTION_GCS_ACCEL_UPDATED:
+                    updateGCSAccelView();
+                    break;
+
+                case ACTION_GCS_ATTITUDE_UPDATED:
+                    updateGCSAttView();
+                    break;
+            }
+
+        }
+    };
+
+    @Override
+    public void onAttach(Activity activity){
+        super.onAttach(activity);
+        if(!(activity instanceof MainActivity)){
+            throw new IllegalStateException("Parent must be an instance of " + MainActivity.class.getName());
+        }
+
+        parent = (MainActivity) activity;
+    }
+
+
+    @Override
+    public void onDetach(){
+        super.onDetach();
+        parent = null;
+    }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState){
@@ -74,6 +105,8 @@ public class GCSAttitudeAppsFragment extends Fragment implements SensorEventList
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        lbm = LocalBroadcastManager.getInstance(getActivity().getApplicationContext());
+        lbm.registerReceiver(gcsAttEventReceiver, gcsAttitudeFilter);
         //view composition
         aXValueView = (TextView) view.findViewById(R.id.a_x_value_view);
         aYValueView = (TextView) view.findViewById(R.id.a_y_value_view);
@@ -91,159 +124,75 @@ public class GCSAttitudeAppsFragment extends Fragment implements SensorEventList
         resetRV_Button.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 // Perform action on click
-                quaternionFreeze.set(quaternionCurrent);
+                lbm.sendBroadcast(new Intent(ACTION_GCS_INIT_ATT_LOCKED));
+                getActivity().getApplicationContext().sendBroadcast(new Intent(ACTION_GCS_INIT_ATT_LOCKED));
             }
         });
 
-
-        // Get reference to SensorManager
-        mSensorManager = (SensorManager) getActivity().getSystemService(Context.SENSOR_SERVICE);
-
-        // Get reference to Accelerometer
-        if (null == (mAccelerometer = mSensorManager
-                .getDefaultSensor(Sensor.TYPE_ACCELEROMETER)) ||
-                null == (mGyroscope = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)))
-            getActivity().finish();
     }
-    // Process new reading
-    @Override
-    public void onSensorChanged(SensorEvent event) {
 
-        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+    void updateGCSGyroView() {
 
-            synchronized (syncToken) {
-                accelVector.setXYZ(event.values);
+        long actualTime = System.currentTimeMillis();
+        if ((actualTime-gLastUpdate)>UPDATE_INTERVAL) {
+            if (parent!=null && parent.getDroneAccess()!=null) {
+                gyroVector=parent.getDroneAccess().getDPService().getGCSGyro();
             }
-
-            long actualTime = System.currentTimeMillis();
-
-            if (actualTime - aLastUpdate > UPDATE_THRESHOLD) {
-
-                aLastUpdate = actualTime;
-
-
-                aXValueView.setText(String.format("%.4f", accelVector.getX()));
-                aYValueView.setText(String.format("%.4f", accelVector.getY()));
-                aZValueView.setText(String.format("%.4f", accelVector.getZ()));
-
-            }
-        }
-
-
-        if (event.sensor.getType() == Sensor.TYPE_GYROSCOPE) {
-//			handle gyro reading
-            long actualTime = System.currentTimeMillis();
-            gyroVector.setXYZ(event.values);
-
-            if (etimestamp != 0) {
-                final float dT = (event.timestamp - etimestamp) * NS2S;
-                // Axis of the rotation sample, not normalized yet.
-                float axisX = gyroVector.getX();
-                float axisY = gyroVector.getY();
-                float axisZ = gyroVector.getZ();
-
-                // Calculate the angular speed of the sample
-                float omegaMagnitude = sqrt(axisX*axisX + axisY*axisY + axisZ*axisZ);
-
-                // Normalize the rotation vector if it's big enough to get the axis
-                // (that is, EPSILON should represent your maximum allowable margin of error)
-                //this normalization make sure the [axisX, axisY, axisZ] is a unit vector
-                if (omegaMagnitude > EPSILON) {
-                    axisX /= omegaMagnitude;
-                    axisY /= omegaMagnitude;
-                    axisZ /= omegaMagnitude;
-                }
-
-                // Integrate around this axis with the angular speed by the timestep
-                // in order to get a delta rotation from this sample over the timestep
-                // We will convert this axis-angle representation of the delta rotation
-                // into a quaternion before turning it into the rotation matrix.
-                float thetaOverTwo = omegaMagnitude * dT / 2.0f;
-                float sinThetaOverTwo = sin(thetaOverTwo);
-                float cosThetaOverTwo = cos(thetaOverTwo);
-                //the rotation vector is a quaternion
-                deltaQuaternion.setX(sinThetaOverTwo * axisX);
-                deltaQuaternion.setY(sinThetaOverTwo * axisY);
-                deltaQuaternion.setZ(sinThetaOverTwo * axisZ);
-                deltaQuaternion.setW(cosThetaOverTwo);
-            }
-            etimestamp = event.timestamp;
-
-
-            ////////////////////////////////////////////
-            //option 2, using Quat//////////////////////
-            //////////////////////////////////////////
-            //R b to e is recursive, R=Rz*Ry*Rx, see ref2. page 22
-            synchronized (syncToken) {
-                quaternionCurrent.multiplyQuat(deltaQuaternion, quaternionCurrent);
-                quaternionCurrent.toCorrectAxisAngleByGravity(accelVector, axisAngle);
-                axisAngle.toQuaternion(correctQuat);
-                quaternionCurrent.multiplyQuat(correctQuat, quaternionCurrent);
-                quaternionCurrent.toEulerAngles(eulerQuatCurrent);
-                quaternionFreeze.getDiffQuaternionToTarget(quaternionCurrent).toEulerAngles(diffEulerQuat);
-            }
-
-
-            if (actualTime - gLastUpdate > UPDATE_THRESHOLD) {
-
-                gLastUpdate = actualTime;
-
-//				float gx = event.values[0], gy = event.values[1], gz = event.values[2];
-
-                gXValueView.setText(String.format("%.4f", gyroVector.getX()));
-                gYValueView.setText(String.format("%.4f", gyroVector.getY()));
-                gZValueView.setText(String.format("%.4f", gyroVector.getZ()));
-
-
-                eXRvValueView.setText(String.format("%.4f",diffEulerQuat.getX()*EulerAngles.R2D));
-                eYRvValueView.setText(String.format("%.4f",diffEulerQuat.getY()*EulerAngles.R2D));
-                eZRvValueView.setText(String.format("%.4f",diffEulerQuat.getZ()*EulerAngles.R2D));
-            }
+            gXValueView.setText(String.format("%.4f", gyroVector.getX()));
+            gYValueView.setText(String.format("%.4f", gyroVector.getY()));
+            gZValueView.setText(String.format("%.4f", gyroVector.getZ()));
+            gLastUpdate = actualTime;
         }
     }
 
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-        // N/A
+    void updateGCSAccelView() {
+        long actualTime = System.currentTimeMillis();
+        if ((actualTime-aLastUpdate)>UPDATE_INTERVAL) {
+            if (parent!=null && parent.getDroneAccess()!=null) {
+                accelVector = parent.getDroneAccess().getDPService().getGCSAccel();
+            }
+            aXValueView.setText(String.format("%.4f", accelVector.getX()));
+            aYValueView.setText(String.format("%.4f", accelVector.getY()));
+            aZValueView.setText(String.format("%.4f", accelVector.getZ()));
+            aLastUpdate = actualTime;
+        }
+    }
+
+    void updateGCSAttView() {
+        long actualTime = System.currentTimeMillis();
+        if ((actualTime-tLastUpdate)>UPDATE_INTERVAL) {
+            if (parent!=null && parent.getDroneAccess()!=null) {
+                attVector = parent.getDroneAccess().getDPService().getGCSAttitude();
+            }
+            eXRvValueView.setText(String.format("%.4f", attVector.getYaw() * EulerAngles.R2D));
+            eYRvValueView.setText(String.format("%.4f", attVector.getPitch() * EulerAngles.R2D));
+            eZRvValueView.setText(String.format("%.4f", attVector.getRoll() * EulerAngles.R2D));
+            tLastUpdate = actualTime;
+//            Log.e(TAG,"update GCS attitude view");
+        }
+
     }
 
 
     @Override
     public void onResume() {
         super.onResume();
-
-        mSensorManager.registerListener(this, mAccelerometer,
-                SensorManager.SENSOR_DELAY_UI);
-
+        lbm.registerReceiver(gcsAttEventReceiver, gcsAttitudeFilter);
         aLastUpdate = System.currentTimeMillis();
-
-        mSensorManager.registerListener(this, mGyroscope,
-                SensorManager.SENSOR_DELAY_UI);
-
         gLastUpdate = System.currentTimeMillis();
-
-
     }
 
     // Unregister listener
     @Override
     public void onPause() {
-        mSensorManager.unregisterListener(this);
+        lbm.unregisterReceiver(gcsAttEventReceiver);
         super.onPause();
     }
 
     @Override
     public void onStart(){
         super.onStart();
-
-        mSensorManager.registerListener(this, mAccelerometer,
-                SensorManager.SENSOR_DELAY_UI);
-
-        aLastUpdate = System.currentTimeMillis();
-
-        mSensorManager.registerListener(this, mGyroscope,
-                SensorManager.SENSOR_DELAY_UI);
-
+        lbm.registerReceiver(gcsAttEventReceiver, gcsAttitudeFilter);
         gLastUpdate = System.currentTimeMillis();
 
 
@@ -251,7 +200,7 @@ public class GCSAttitudeAppsFragment extends Fragment implements SensorEventList
 
     @Override
     public void onStop(){
-        mSensorManager.unregisterListener(this);
+        lbm.unregisterReceiver(gcsAttEventReceiver);
         super.onStop();
     }
 }

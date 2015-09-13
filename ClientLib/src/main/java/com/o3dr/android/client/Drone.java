@@ -561,6 +561,18 @@ public class Drone {
     /**
      * @deprecated Use {@link VehicleApi#setVehicleMode(VehicleMode)} instead.
      */
+    public void sendRcOverride(int channel, int value) {
+        VehicleApi.getApi(this).sendRcOverride(channel, value);
+    }
+    /**
+     * @deprecated Use {@link VehicleApi#setVehicleMode(VehicleMode)} instead.
+     */
+    public void followGCSGesture(Attitude gcsAttLocked, Attitude gcsAtt) {
+        VehicleApi.getApi(this).followGCSGesture(gcsAttLocked, gcsAtt);
+    }
+    /**
+     * @deprecated Use {@link VehicleApi#setVehicleMode(VehicleMode)} instead.
+     */
     public void changeVehicleMode(VehicleMode newMode) {
         VehicleApi.getApi(this).setVehicleMode(newMode);
     }

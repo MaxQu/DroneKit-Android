@@ -3,9 +3,11 @@ package org.droidplanner.services.android.core.MAVLink;
 import org.droidplanner.services.android.core.drone.variables.ApmModes;
 import com.MAVLink.common.msg_mission_item;
 import com.MAVLink.common.msg_set_position_target_global_int;
+import com.MAVLink.common.msg_gcs_gesture_ypr_local_bf;
 import com.MAVLink.common.msg_set_mode;
 import com.MAVLink.enums.MAV_CMD;
 import com.MAVLink.enums.MAV_FRAME;
+import com.o3dr.services.android.lib.drone.property.Attitude;
 import com.o3dr.services.android.lib.model.ICommandListener;
 
 import org.droidplanner.services.android.core.drone.autopilot.MavLinkDrone;
@@ -81,5 +83,34 @@ public class MavLinkModes {
         msg.base_mode = 1; // TODO use meaningful constant
         msg.custom_mode = mode.getNumber();
         drone.getMavClient().sendMavMessage(msg, listener);
+    }
+
+    public static void sendGCSGesture(MavLinkDrone drone, Attitude gcsAttFreeze, Attitude gcsAttDiff) {
+        msg_gcs_gesture_ypr_local_bf msg = new msg_gcs_gesture_ypr_local_bf();
+        msg.time_boot_ms = 0;
+        msg.target_system = 1;
+        msg.target_component = 0;
+        msg.coordinate_frame = MAV_FRAME.MAV_FRAME_BODY_NED;
+        msg.type_mask = 455;
+        msg.x = 0;
+        msg.y = 0;
+        msg.z = 0;
+        msg.vx = 0;
+        msg.vy = 0;
+        msg.vz = 0;
+        msg.afx = 0;
+        msg.afy = 0;
+        msg.afz = 0;
+        msg.lyaw = (float) gcsAttFreeze.getYaw();
+        msg.lpitch = (float) gcsAttFreeze.getPitch();
+        msg.lroll = (float) gcsAttFreeze.getRoll();
+        msg.yaw = (float) gcsAttFreeze.getYaw()+ (float) gcsAttDiff.getYaw();
+        msg.pitch = (float) gcsAttFreeze.getPitch()+ (float) gcsAttDiff.getPitch();
+        msg.roll = (float) gcsAttFreeze.getRoll()+ (float) gcsAttDiff.getRoll();
+        msg.vyaw = 0;
+        msg.vpitch = 0;
+        msg.vroll = 0;
+        drone.getMavClient().sendMavMessage(msg, null);
+
     }
 }
