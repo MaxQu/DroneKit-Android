@@ -21,6 +21,7 @@ public class GuidedActions {
 
     public static final String ACTION_FOLLOW_GCS_GESTURE = Utils.PACKAGE_NAME + ".action.FOLLOW_GCS_GESTURE";
     public static final String EXTRA_GCS_ATTITUDE = "extra_gcs_attitude";
+    public static final String EXTRA_FORCE_GCS_ATTITUDE = "extra_force_gcs_attitude";
     public static final String EXTRA_GCS_ATTITUDE_LOCKED = "extra_gcs_attitude_locked";
 
     public static final String ACTION_RC_OVERRIDE = Utils.PACKAGE_NAME + ".action.RC_OVERRIDE";

@@ -92,7 +92,7 @@ public class DroidPlannerService extends Service implements SensorEventListener 
     /**
      * used to calculate gcs attitude
      */
-    private static final int UPDATE_THRESHOLD = 10;
+    private static final int BCAST_INTERVAL = 50;
     private static final float EPSILON = 0.01f;
     private static final float NS2S = 1.0f / 1000000000.0f;
 
@@ -124,7 +124,7 @@ public class DroidPlannerService extends Service implements SensorEventListener 
 
     //For visualization update
     private static float etimestamp; //time log for calcualte euler angles
-    private long aLastUpdate, gLastUpdate;
+    private long aLastBcast, gLastBcast;
 
     //For synchronization
     protected final Object syncToken = new Object();
@@ -455,22 +455,20 @@ public class DroidPlannerService extends Service implements SensorEventListener 
         context.registerReceiver(gcsInitAttLockReceiver, gcsInitAttLockFilter);
 
         mSensorManager = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
-        if (null == (mAccelerometer = mSensorManager
-                .getDefaultSensor(Sensor.TYPE_ACCELEROMETER)) ||
-                null == (mGyroscope = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)))
-            return;
+        if (hasGCSAccel() && hasGCSGyro()) {
 
-        mSensorManager.registerListener(this, mAccelerometer,
-                SensorManager.SENSOR_DELAY_UI);
+            mSensorManager.registerListener(this, mAccelerometer,
+                    SensorManager.SENSOR_DELAY_UI);
 
-        aLastUpdate = System.currentTimeMillis();
+            aLastBcast = System.currentTimeMillis();
 
-        mSensorManager.registerListener(this, mGyroscope,
-                SensorManager.SENSOR_DELAY_UI);
+            mSensorManager.registerListener(this, mGyroscope,
+                    SensorManager.SENSOR_DELAY_UI);
 
-        gLastUpdate = System.currentTimeMillis();
+            gLastBcast = System.currentTimeMillis();
 
-        broadcastGCSAttData();
+            broadcastGCSAttData();
+        }
 
     }
 
@@ -483,23 +481,19 @@ public class DroidPlannerService extends Service implements SensorEventListener 
     public void onSensorChanged(SensorEvent event) {
 
         if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
-            long actualTime = System.currentTimeMillis();
-//            if ((etimestamp !=0) && (actualTime - aLastUpdate > UPDATE_THRESHOLD)) {
-            if (etimestamp != 0) {
+            if ((etimestamp !=0)) {
                 synchronized (syncToken) {
                     accelVector.setXYZ(event.values);
                 }
             }
-            aLastUpdate = actualTime;
+
         }
 
         if (event.sensor.getType() == Sensor.TYPE_GYROSCOPE) {
 //			handle gyro reading
-            long actualTime = System.currentTimeMillis();
             gyroVector.setXYZ(event.values);
 
-//            if ((etimestamp != 0) && (actualTime - gLastUpdate > UPDATE_THRESHOLD)) {
-            if (etimestamp != 0) {
+            if ((etimestamp != 0)) {
                 final float dT = (event.timestamp - etimestamp) * NS2S;
                 // Axis of the rotation sample, not normalized yet.
                 float axisX = gyroVector.getX();
@@ -536,16 +530,15 @@ public class DroidPlannerService extends Service implements SensorEventListener 
             //Calculate Euler Angle, using Quat//////////////////////
             /////////////////////////////////////////////////////////
             //R b to e is recursive, R=Rz*Ry*Rx, see ref2. page 22
-            synchronized (syncToken) {
-                quaternionCurrent.multiplyQuat(deltaQuaternion, quaternionCurrent);
-                quaternionCurrent.toCorrectAxisAngleByGravity(accelVector, axisAngle);
-                axisAngle.toQuaternion(correctQuat);
-                quaternionCurrent.multiplyQuat(correctQuat, quaternionCurrent);
-                quaternionCurrent.toEulerAngles(eulerQuatCurrent);
-                quaternionFreeze.getDiffQuaternionToTarget(quaternionCurrent).toEulerAngles(diffEulerQuat);
-                quaternionFreeze.toEulerAngles(eulerQuatFreeze);
-            }
-            gLastUpdate = actualTime;
+                synchronized (syncToken) {
+                    quaternionCurrent.multiplyQuat(deltaQuaternion, quaternionCurrent);
+                    quaternionCurrent.toCorrectAxisAngleByGravity(accelVector, axisAngle);
+                    axisAngle.toQuaternion(correctQuat);
+                    quaternionCurrent.multiplyQuat(correctQuat, quaternionCurrent);
+                    quaternionCurrent.toEulerAngles(eulerQuatCurrent);
+                    quaternionFreeze.getDiffQuaternionToTarget(quaternionCurrent).toEulerAngles(diffEulerQuat);
+                    quaternionFreeze.toEulerAngles(eulerQuatFreeze);
+                }
             }
             etimestamp = event.timestamp;
         }
@@ -573,6 +566,14 @@ public class DroidPlannerService extends Service implements SensorEventListener 
 
     public Vector3 getGCSAccel() {
         return gcsAccel;
+    }
+
+    public boolean hasGCSGyro() {
+        return (null != (mGyroscope = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)));
+    }
+
+    public boolean hasGCSAccel() {
+        return (null != (mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)));
     }
 
     @SuppressLint("NewApi")
@@ -641,19 +642,20 @@ public class DroidPlannerService extends Service implements SensorEventListener 
             }
         }
 
+        if (hasGCSAccel()&&hasGCSGyro()) {
+            mSensorManager.registerListener(this, mAccelerometer,
+                    SensorManager.SENSOR_DELAY_UI);
 
-        mSensorManager.registerListener(this, mAccelerometer,
-                SensorManager.SENSOR_DELAY_UI);
+            aLastBcast = System.currentTimeMillis();
 
-        aLastUpdate = System.currentTimeMillis();
+            mSensorManager.registerListener(this, mGyroscope,
+                    SensorManager.SENSOR_DELAY_UI);
 
-        mSensorManager.registerListener(this, mGyroscope,
-                SensorManager.SENSOR_DELAY_UI);
-
-        gLastUpdate = System.currentTimeMillis();
+            gLastBcast = System.currentTimeMillis();
 
 
-        broadcastGCSAttData();
+            broadcastGCSAttData();
+        }
         stopSelf();
         return START_NOT_STICKY;
     }
@@ -662,29 +664,35 @@ public class DroidPlannerService extends Service implements SensorEventListener 
         gcsAttLocked.setYaw((double) eulerQuatFreeze.getX());
         gcsAttLocked.setPitch((double) eulerQuatFreeze.getY());
         gcsAttLocked.setRoll((double) eulerQuatFreeze.getZ());
+        long actualTime = System.currentTimeMillis();
 
-        gcsAccel.setX((double) accelVector.getX());
-        gcsAccel.setY((double) accelVector.getY());
-        gcsAccel.setZ((double) accelVector.getZ());
-        lbm.sendBroadcast(new Intent(ACTION_GCS_ACCEL_UPDATED));
+        if ((actualTime-aLastBcast)>BCAST_INTERVAL) {
+            gcsAccel.setX((double) accelVector.getX());
+            gcsAccel.setY((double) accelVector.getY());
+            gcsAccel.setZ((double) accelVector.getZ());
+            lbm.sendBroadcast(new Intent(ACTION_GCS_ACCEL_UPDATED));
+            aLastBcast = actualTime;
+        }
+        if ((actualTime-gLastBcast)>BCAST_INTERVAL) {
+            gcsGyro.setX((double) gyroVector.getX());
+            gcsGyro.setY((double) gyroVector.getY());
+            gcsGyro.setZ((double) gyroVector.getZ());
+            lbm.sendBroadcast(new Intent(ACTION_GCS_GYRO_UPDATED));
 
-        gcsGyro.setX((double) gyroVector.getX());
-        gcsGyro.setY((double) gyroVector.getY());
-        gcsGyro.setZ((double) gyroVector.getZ());
-        lbm.sendBroadcast(new Intent(ACTION_GCS_GYRO_UPDATED));
-
-        gcsAtt.setYaw((double) diffEulerQuat.getX());
-        gcsAtt.setPitch((double) diffEulerQuat.getY());
-        gcsAtt.setRoll((double) diffEulerQuat.getZ());
-        //formulate the intent
-//        Intent gcsAttIntent = new Intent(ACTION_GCS_ATTITUDE_UPDATED);
-//        gcsAttIntent.putExtra(ACTION_GCS_ATTITUDE_UPDATED, gcsAtt);
-//        lbm.sendBroadcast(gcsAttIntent);
-        lbm.sendBroadcast(new Intent(ACTION_GCS_ATTITUDE_UPDATED));
-        context.sendBroadcast(new Intent(ACTION_GCS_ATTITUDE_UPDATED));
-//      Log.e(TAG, "msg sent");
-//      Log.e(TAG,ACTION_GCS_ATTITUDE_UPDATED);
-//      Log.e(TAG, gcsAtt.toString());
+            gcsAtt.setYaw((double) diffEulerQuat.getX());
+            gcsAtt.setPitch((double) diffEulerQuat.getY());
+            gcsAtt.setRoll((double) diffEulerQuat.getZ());
+            //formulate the intent
+//          Intent gcsAttIntent = new Intent(ACTION_GCS_ATTITUDE_UPDATED);
+//          gcsAttIntent.putExtra(ACTION_GCS_ATTITUDE_UPDATED, gcsAtt);
+//          lbm.sendBroadcast(gcsAttIntent);
+            lbm.sendBroadcast(new Intent(ACTION_GCS_ATTITUDE_UPDATED));
+            context.sendBroadcast(new Intent(ACTION_GCS_ATTITUDE_UPDATED));
+//          Log.e(TAG, "msg sent");
+//          Log.e(TAG,ACTION_GCS_ATTITUDE_UPDATED);
+//          Log.e(TAG, gcsAtt.toString());
+            gLastBcast = actualTime;
+        }
     }
 
 }

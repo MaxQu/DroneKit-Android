@@ -87,29 +87,33 @@ public class MavLinkModes {
 
     public static void sendGCSGesture(MavLinkDrone drone, Attitude gcsAttFreeze, Attitude gcsAttDiff) {
         msg_gcs_gesture_ypr_local_bf msg = new msg_gcs_gesture_ypr_local_bf();
-        msg.time_boot_ms = 0;
+        msg.time_boot_ms = 0L;
+        //msg.target_system = drone.getSysid();
         msg.target_system = 1;
+        //msg.target_component = drone.getCompid();
         msg.target_component = 0;
-        msg.coordinate_frame = MAV_FRAME.MAV_FRAME_BODY_NED;
+        //msg.coordinate_frame = MAV_FRAME.MAV_FRAME_BODY_NED;
+        msg.coordinate_frame = 8;
+        //msg.type_mask = MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE | MAVLINK_SET_POS_TYPE_MASK_POS_IGNORE;
         msg.type_mask = 455;
-        msg.x = 0;
-        msg.y = 0;
-        msg.z = 0;
-        msg.vx = 0;
-        msg.vy = 0;
-        msg.vz = 0;
-        msg.afx = 0;
-        msg.afy = 0;
-        msg.afz = 0;
+        msg.x = 0.0f;
+        msg.y = 0.0f;
+        msg.z = 0.0f;
+        msg.vx = 0.0f;
+        msg.vy = 0.0f;
+        msg.vz = 0.0f;
+        msg.afx = 0.0f;
+        msg.afy = 0.0f;
+        msg.afz = 0.0f;
         msg.lyaw = (float) gcsAttFreeze.getYaw();
         msg.lpitch = (float) gcsAttFreeze.getPitch();
         msg.lroll = (float) gcsAttFreeze.getRoll();
         msg.yaw = (float) gcsAttFreeze.getYaw()+ (float) gcsAttDiff.getYaw();
         msg.pitch = (float) gcsAttFreeze.getPitch()+ (float) gcsAttDiff.getPitch();
         msg.roll = (float) gcsAttFreeze.getRoll()+ (float) gcsAttDiff.getRoll();
-        msg.vyaw = 0;
-        msg.vpitch = 0;
-        msg.vroll = 0;
+        msg.vyaw = 0.0f;
+        msg.vpitch = 0.0f;
+        msg.vroll = 0.0f;
         drone.getMavClient().sendMavMessage(msg, null);
 
     }

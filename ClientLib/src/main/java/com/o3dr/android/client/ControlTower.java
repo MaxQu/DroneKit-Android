@@ -202,6 +202,31 @@ public class ControlTower {
         return attitude;
     }
 
+    public boolean hasGCSAccel() {
+        boolean hasAccel = false;
+        if (isTowerConnected()) {
+            try {
+                hasAccel = o3drServices.hasGCSAccel();
+            } catch (RemoteException var7) {
+                this.handleRemoteException(var7);
+            }
+        }
+        return hasAccel;
+    }
+
+    public boolean hasGCSGyro() {
+        boolean hasGyro = false;
+        if (isTowerConnected()) {
+            try {
+                hasGyro = o3drServices.hasGCSGyro();
+            } catch (RemoteException var7) {
+                this.handleRemoteException(var7);
+            }
+        }
+        return hasGyro;
+    }
+
+
     private void handleRemoteException(RemoteException e) {
 
         Log.e(TAG, "Remote gcs attitude msg broken: ", e);

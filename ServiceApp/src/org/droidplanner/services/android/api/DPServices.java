@@ -103,4 +103,10 @@ final class DPServices extends IDroidPlannerServices.Stub {
     public Vector3 getGCSAccel() {
         return serviceRef.getGCSAccel();
     }
+
+    @Override
+    public boolean hasGCSAccel() {return serviceRef.hasGCSAccel();}
+
+    @Override
+    public boolean hasGCSGyro() {return serviceRef.hasGCSGyro();}
 }

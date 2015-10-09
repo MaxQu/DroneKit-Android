@@ -504,7 +504,8 @@ public abstract class ArduPilot implements MavLinkDrone {
             case GuidedActions.ACTION_FOLLOW_GCS_GESTURE:
                 Attitude gcsAttLocked = data.getParcelable(GuidedActions.EXTRA_GCS_ATTITUDE_LOCKED);
                 Attitude gcsAtt = data.getParcelable(GuidedActions.EXTRA_GCS_ATTITUDE);
-                CommonApiUtils.followGCSGesture(this,gcsAttLocked,gcsAtt,true,listener);
+                boolean gcsForce =data.getBoolean(GuidedActions.EXTRA_FORCE_GCS_ATTITUDE);
+                CommonApiUtils.followGCSGesture(this,gcsAttLocked,gcsAtt,gcsForce,listener);
 
             case GuidedActions.ACTION_DO_GUIDED_TAKEOFF:
                 double takeoffAltitude = data.getDouble(GuidedActions.EXTRA_ALTITUDE);
@@ -513,9 +514,9 @@ public abstract class ArduPilot implements MavLinkDrone {
 
             case GuidedActions.ACTION_SEND_GUIDED_POINT:
                 data.setClassLoader(LatLong.class.getClassLoader());
-                boolean force = data.getBoolean(GuidedActions.EXTRA_FORCE_GUIDED_POINT);
+                boolean guidedForce = data.getBoolean(GuidedActions.EXTRA_FORCE_GUIDED_POINT);
                 LatLong guidedPoint = data.getParcelable(GuidedActions.EXTRA_GUIDED_POINT);
-                CommonApiUtils.sendGuidedPoint(this, guidedPoint, force, listener);
+                CommonApiUtils.sendGuidedPoint(this, guidedPoint, guidedForce, listener);
                 break;
 
             case GuidedActions.ACTION_SET_GUIDED_ALTITUDE:

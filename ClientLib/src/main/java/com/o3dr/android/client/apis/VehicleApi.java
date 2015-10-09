@@ -22,6 +22,7 @@ import static com.o3dr.services.android.lib.drone.action.GuidedActions.ACTION_DO
 import static com.o3dr.services.android.lib.drone.action.GuidedActions.ACTION_SEND_GUIDED_POINT;
 import static com.o3dr.services.android.lib.drone.action.GuidedActions.ACTION_SET_GUIDED_ALTITUDE;
 import static com.o3dr.services.android.lib.drone.action.GuidedActions.ACTION_FOLLOW_GCS_GESTURE;
+import static com.o3dr.services.android.lib.drone.action.GuidedActions.EXTRA_FORCE_GCS_ATTITUDE;
 import static com.o3dr.services.android.lib.drone.action.GuidedActions.EXTRA_GCS_ATTITUDE;
 import static com.o3dr.services.android.lib.drone.action.GuidedActions.EXTRA_GCS_ATTITUDE_LOCKED;
 import static com.o3dr.services.android.lib.drone.action.GuidedActions.EXTRA_ALTITUDE;
@@ -126,10 +127,11 @@ public class VehicleApi extends Api {
      * @param gcsAttLocked gcs attitude locked.
      * @param gcsAtt gcs attitude.
      */
-    public void followGCSGesture(Attitude gcsAttLocked, Attitude gcsAtt) {
+    public void followGCSGesture(Attitude gcsAttLocked, Attitude gcsAtt, boolean force) {
         Bundle params = new Bundle();
         params.putParcelable(EXTRA_GCS_ATTITUDE, gcsAtt);
         params.putParcelable(EXTRA_GCS_ATTITUDE_LOCKED, gcsAttLocked);
+        params.putBoolean(EXTRA_FORCE_GCS_ATTITUDE,force);
         drone.performAsyncActionOnDroneThread(new Action(ACTION_FOLLOW_GCS_GESTURE, params), null);
     }
 

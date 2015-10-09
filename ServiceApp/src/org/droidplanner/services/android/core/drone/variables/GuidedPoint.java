@@ -278,8 +278,8 @@ public class GuidedPoint extends DroneVariable implements OnDroneListener {
         changeToGuidedMode(myDrone, listener);
         switch (state) {
             case UNINITIALIZED:
-                break;
-
+                initialize();
+                /** FALL THROUGH **/
             case IDLE:
                 state = GuidedStates.ACTIVE;
                 /** FALL THROUGH **/
@@ -311,9 +311,11 @@ public class GuidedPoint extends DroneVariable implements OnDroneListener {
     }
 
     public void followGCSGesture(Attitude gcsAttLocked, Attitude gcsAtt) {
-        if (state == GuidedStates.ACTIVE) {
-            forceFollowGCSGesture(myDrone, gcsAttLocked, gcsAtt);
+        if (state == GuidedStates.UNINITIALIZED) {
+            initialize();
         }
+        state = GuidedStates.ACTIVE;
+        forceFollowGCSGesture(myDrone, gcsAttLocked, gcsAtt);
     }
 
     public static void forceFollowGCSGesture(MavLinkDrone drone, Attitude gcsAttLocked, Attitude gcsAtt) {

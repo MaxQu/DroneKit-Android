@@ -61,4 +61,15 @@ interface IDroidPlannerServices {
     * Retrieve the GCS accelerometer data
     */
     Vector3 getGCSAccel();
+
+    /**
+    * Tell whether it has accelerometer
+    */
+    boolean hasGCSAccel();
+
+    /**
+    * Tell whether it has gyro
+    */
+    boolean hasGCSGyro();
+
 }
